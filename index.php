@@ -118,8 +118,10 @@ if(isset($_POST['submit'])){
 	foreach ($filenames as $filename){
 		echobr('now parsing file '.$filename);	//debug
 		$contents	= file_get_contents(__DIR__ . '/uploads_tmp/' . $filename);
-		$regex		= '/\<Placemark\>.*\<\/Placemark\>/ms';
-		preg_match($regex, $contents, $matches);
+//		$regex		= '/\<Placemark\>.*\<\/Placemark\>/ms';									//OLD regex - matches everything between the first <Placemark> tag and the last </Placemark> tag. Thus works only if all <Placemark> tags in the file are located one after another. Doesn't work if file contains various <Placemark> tags separated by other tags in between.
+		$regex		= '/<Placemark>(?<=<Placemark>).*?(?=<\/Placemark>)<\/Placemark>/ms';	//matches all <Placemark> tags regardless of what is between them
+
+		preg_match_all($regex, $contents, $matches);
 
 		$end_result .= '
 
@@ -127,7 +129,9 @@ if(isset($_POST['submit'])){
 
 		';
 
-		$end_result .= $matches[0];
+		foreach($matches[0] as $placemark_tag){
+			$end_result .= $placemark_tag;
+		}//end foreach
 
 		$end_result .= '
 
