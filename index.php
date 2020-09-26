@@ -1,7 +1,9 @@
 <?php
-include('functions.php');
 
 ob_start();	//hide any output prior to the file contents output
+
+include('header.php');
+include('functions.php');
 
 //handle post
 if(isset($_POST['submit'])){
@@ -164,16 +166,25 @@ if(isset($_POST['submit'])){
 
 }//end if
 ?>
+<div class="container">
+	<div class="row">
+		<div class="col-xs-12">
 
-<form method="post" enctype="multipart/form-data">
-	KML files to merge:
-	<br/>
-	<br/>
-	<input type="file" name="kmlfiles[]" multiple="multiple" />
-	<br/>
-	<br/>
-	<input type="submit" name="submit" value="Submit" />
-</form>
+			<form name="fileupload" id="fileupload" method="post" enctype="multipart/form-data">
+				KML files to merge:
+				<br/>
+				<br/>
+				<input type="file" name="kmlfiles[]" multiple="multiple" />
+				<br/>
+				<br/>
+				<input type="submit" name="submit" value="Submit" />
+			</form>
+
+		</div>
+	</div>
+</div>
+
 
 <?php
 
+include('footer.php');
