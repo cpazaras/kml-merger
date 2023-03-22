@@ -1,5 +1,12 @@
 <?php
 
+function custom_mysqli_result($res, $row, $field=0) {
+	$res->data_seek($row);
+	$datarow = $res->fetch_array();
+	return $datarow[$field];
+}//end function
+
+
 /**
  * @param $var
  * @param string $function
@@ -68,5 +75,16 @@ function diebr($content) {
 	die('<br/>' . $content . '<br/>');
 }
 
+//get possible enum options for a field
+function get_enum_values($table_name, $column_name){
+	global $dbconn;
+
+	$res = $dbconn->query("SHOW COLUMNS FROM `{$table_name}` WHERE field = '{$column_name}'");
+	$row = $res->fetch_array();
+	preg_match("/^enum\(\'(.*)\'\)$/", $row['Type'], $matches);
+	$enum = explode("','", $matches[1]);
+
+	return $enum;
+}//end function
 
 ?>

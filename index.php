@@ -1,190 +1,141 @@
 <?php
+ini_set('display_errors', 'on');
+error_reporting(E_ALL);
 
-ob_start();	//hide any output prior to the file contents output
-
-include('header.php');
+include('dbconn.php');
 include('functions.php');
+include('header.php');
 
-//handle post
-if(isset($_POST['submit'])){
-
-	//check if no files were selected
-	if($_FILES['kmlfiles']['error'][0] == 4){
-		echobr('No files selected.');
-		exit();
-	}//end if
-
-	//empty the temp upload dir from any older files just in case
-	$filesIterator = new FilesystemIterator(__DIR__ . '/uploads_tmp');
-	foreach($filesIterator as $file){
-		@unlink(__DIR__ . '/uploads_tmp/' . $file->getFilename());
-	}//end foreach
-
-	//set params
-	$target_dir	= "uploads_tmp/";
-	$error		= false;
-
-	//count how many files were submitted
-	$files_submitted_count = sizeof($_FILES['kmlfiles']['name']);
-
-	//foreach file
-	for($i=0; $i<$files_submitted_count; $i++){
-		$target_file	= $target_dir . basename($_FILES["kmlfiles"]["name"][$i]);
-		$extension		= strtolower(pathinfo($target_file,PATHINFO_EXTENSION));
-
-		//allow only kml files
-		if($extension != "kml") {
-			echobr("Sorry, only KML files are allowed.");
-			exit();
-		}//end if
-
-		//upload
-		if (move_uploaded_file($_FILES["kmlfiles"]["tmp_name"][$i], $target_file)) {
-			echo("<br/>The file ". basename( $_FILES["kmlfiles"]["name"][$i]). " has been uploaded.");
-		} else {
-			echobr("Sorry, there was an error uploading your file.");
-			$error = true;
-		}//end if
-
-	}//end for
-
-	if($error){
-		exit('One or more files errored while uploading, exiting...');
-	}//end if
+?>
 
 
-	/////////////////////////////////////////////////////////////////////////////
-	// BEGIN merging
-	/////////////////////////////////////////////////////////////////////////////
-
-	$end_result = '
-		<?xml version="1.0" encoding="UTF-8"?>
-			<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2">
-				<Document>
-					<name> Location history from 2020-09-11 to 2020-09-11 </name>
-					<open>1</open>
-					<description></description>
-					<StyleMap id="multiTrack">
-						<Pair>
-							<key>normal</key>
-							<styleUrl>#multiTrack_n</styleUrl>
-						</Pair>
-						<Pair>
-							<key>highlight</key>
-							<styleUrl>#multiTrack_h</styleUrl>
-						</Pair>
-					</StyleMap>
-					<Style id="multiTrack_n">
-						<IconStyle>
-							<Icon>
-								<href>https://earth.google.com/images/kml-icons/track-directional/track-0.png</href>
-							</Icon>
-						</IconStyle>
-						<LineStyle>
-							<color>99ffac59</color>
-							<width>6</width>
-						</LineStyle>
-					</Style>
-					<Style id="multiTrack_h">
-						<IconStyle>
-							<scale>1.2</scale>
-							<Icon>
-								<href>https://earth.google.com/images/kml-icons/track-directional/track-0.png</href>
-							</Icon>
-						</IconStyle>
-						<LineStyle>
-							<color>99ffac59</color>
-							<width>8</width>
-						</LineStyle>
-					</Style>
-	';
-
-	$filesIterator = new FilesystemIterator(__DIR__ . '/uploads_tmp');
-
-	//sort files by alphabetical order
-	$filenames = [];
-	foreach ($filesIterator as $file){
-		$filenames[] = $file->getFilename();
-	}//end foreach
-	sort($filenames);
-
-
-	//output the order that the files will be merged
-	echobr("Files will be merged in the following order:");
-	foreach($filenames as $index => $filename){
-		echo("[{$index}] {$filename}<br/>");
-	}//end foreach
-
-
-	//parse files
-	foreach ($filenames as $filename){
-		echobr('now parsing file '.$filename);	//debug
-		$contents	= file_get_contents(__DIR__ . '/uploads_tmp/' . $filename);
-//		$regex		= '/\<Placemark\>.*\<\/Placemark\>/ms';									//OLD regex - matches everything between the first <Placemark> tag and the last </Placemark> tag. Thus works only if all <Placemark> tags in the file are located one after another. Doesn't work if file contains various <Placemark> tags separated by other tags in between.
-		$regex		= '/<Placemark>(?<=<Placemark>).*?(?=<\/Placemark>)<\/Placemark>/ms';	//matches all <Placemark> tags regardless of what is between them
-
-		preg_match_all($regex, $contents, $matches);
-
-		$end_result .= '
-
-			<!-- BEGIN file "' . $filename . '" -->
-
-		';
-
-		foreach($matches[0] as $placemark_tag){
-			$end_result .= $placemark_tag;
-		}//end foreach
-
-		$end_result .= '
-
-			<!-- END file "' . $filename . '" -->
-
-		';
-
-	}//end foreach
-
-	//wrap up the document
-	$end_result .= '
-			</Document>
-		</kml>
-	';
-
-
-	//delete uploaded files
-	foreach($filenames as $filename){
-		@unlink(__DIR__ . '/uploads_tmp/' . $filename);
-	}//end foreach
-
-
-	//delete any output generated
-	ob_end_clean();
-
-	//serve result as file
-	header('Content-type: text/plain');
-	header('Content-Disposition: attachment; filename="merged.kml"');
-	die($end_result);
+<?
+htmldump($_POST, '$_POST');	//debug
+if(isset($_POST) && !empty($_POST)){
+	htmldumpdie($_POST);	//debug
+	die('POST');
 
 }//end if
 ?>
-<div class="container">
+
+
+<!-- datatables -->
+<link href="scripts/datatables/datatables.min.css" rel="stylesheet"/>
+<script src="scripts/datatables/datatables.min.js"></script>
+<!-- /datatables -->
+
+
+<div class="container" style="margin-top: 30px;">
 	<div class="row">
 		<div class="col-xs-12">
 
-			<form name="fileupload" id="fileupload" method="post" enctype="multipart/form-data">
-				KML files to merge:
-				<br/>
-				<br/>
-				<input type="file" name="kmlfiles[]" multiple="multiple" />
-				<br/>
-				<br/>
+			<form name="uploadform" id="uploadform" method="post" enctype="multipart/form-data" action="">
+
+				<div class="form-group row">
+					<label for="market" class="col-sm-5 col-form-label">Super Market:</label>
+					<div class="col-sm-7">
+						<select name="market">
+							<?foreach(get_enum_values('supermarket', 'market') as $value):?>
+								<option value="<?=$value?>"><?=ucfirst($value)?></option>
+							<?endforeach;?>
+						</select>
+					</div>
+				</div>
+
+				<div class="form-group row">
+					<label for="amount" class="col-sm-5 col-form-label">Amount:</label>
+					<div class="col-sm-7">
+						<input type="text" class="form-control" name="amount" id="amount" value="" placeholder="" />
+					</div>
+				</div>
+
+
+				<div class="form-group row">
+					<label for="payer" class="col-sm-5 col-form-label">Paid by:</label>
+					<div class="col-sm-7">
+						<select name="payer">
+							<?foreach(get_enum_values('supermarket', 'payer') as $value):?>
+								<option value="<?=$value?>"><?=ucfirst($value)?></option>
+							<?endforeach;?>
+						</select>
+					</div>
+				</div>
+
+				<div class="form-group row">
+					<label for="payer" class="col-sm-5 col-form-label">Payment Method:</label>
+					<div class="col-sm-7">
+						<select name="payment_method">
+							<?foreach(get_enum_values('supermarket', 'payment_method') as $value):?>
+								<option value="<?=$value?>"><?=ucfirst($value)?></option>
+							<?endforeach;?>
+						</select>
+					</div>
+				</div>
+
+				<div class="form-group row">
+					<label for="market" class="col-sm-5 col-form-label">Paid On:</label>
+					<div class="col-sm-7">
+						<input type="date" class="form-control" name="date" id="date" value="<?=date('Y-m-d')?>" placeholder="" />
+					</div>
+				</div>
+
+
+
+
 				<input type="submit" name="submit" value="Submit" />
+				<br/>
+				<br/>
+				<div class="msg" style="display: none;"></div>
 			</form>
 
 		</div>
 	</div>
 </div>
 
+<script type="text/javascript">
+/*
+//uncomment for ajax upload
 
+	$(document).ready(function (e){
+		$("#uploadform").on('submit',(function(e){
+			e.preventDefault();
+			$.ajax({
+				url: "ajaxupload.php",
+				type: "POST",
+				data:  new FormData(this),
+				contentType: false,
+				cache: false,
+				processData: false,
+				beforeSend: function(){
+					$(".msg").removeClass('alert-danger').removeClass('alert-success').hide();
+				},
+				success: function(response){
+					response = JSON.parse(response);
+
+					//if error
+					if(response['error'] == true){
+						$(".msg").addClass('alert-danger').html("ERROR: "+response['error_msg']);
+
+						return false;
+					}//end if
+
+					//success
+					$(".msg").html(response['output']);
+					download('merged.kml', response['merge_result']);
+
+					return true;
+				},
+				error: function(error){
+					console.log('AJAX ERROR: '+error);	//debug
+				},
+				complete: function(e){
+					$(".msg").fadeIn();
+				},
+			});
+		}));
+	});
+*/
+</script>
 <?php
 
 include('footer.php');
